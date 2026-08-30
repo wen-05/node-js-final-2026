@@ -2,6 +2,7 @@ require('dotenv').config()
 const { DataSource } = require('typeorm')
 const Skill = require('../entities/Skill');
 const CreditPackage = require('../entities/CreditPackage')
+const User = require('../entities/User')
 
 const dataSource = new DataSource({
   type: 'postgres',
@@ -13,7 +14,7 @@ const dataSource = new DataSource({
   synchronize: process.env.DB_SYNCHRONIZE === 'true',
   ssl: process.env.DB_ENABLE_SSL === 'true',
   entities: [
-    Skill, CreditPackage
+    Skill, CreditPackage, User
   ],
 })
 

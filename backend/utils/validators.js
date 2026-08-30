@@ -6,4 +6,7 @@ const isNotValidInteger = (value) => {
   return typeof value !== 'number' | !Number.isInteger(value);
 }
 
-module.exports = { isNotValidString, isNotValidInteger }
+const isValidPassword = (value) =>
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,16}$/.test(value);
+
+module.exports = { isNotValidString, isNotValidInteger, isValidPassword }
