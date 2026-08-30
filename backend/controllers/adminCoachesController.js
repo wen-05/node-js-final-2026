@@ -4,6 +4,21 @@ const appError = require("../utils/appError");
 const { FIELD_INCORRECT } = require("../utils/errorMessages");
 const { isNotValidString, isNotValidInteger } = require("../utils/validators");
 
+const MONTH_MAP = {
+  january: 0,
+  february: 1,
+  march: 2,
+  april: 3,
+  may: 4,
+  june: 5,
+  july: 6,
+  august: 7,
+  september: 8,
+  october: 9,
+  november: 10,
+  december: 11,
+};
+
 const adminCoachesController = {
   async createCoach(req, res, next) {
     const { userId } = req.params;
@@ -160,6 +175,66 @@ const adminCoachesController = {
     };
 
     return handleSuccess(res, responseData);
+  },
+
+  async getCoachRevenue(req, res, next) {
+    const { month } = req.query;
+
+    if (isNotValidString(month) || !Object.prototype.hasOwnProperty.call(MONTH_MAP, month)) {
+      return next(appError(400, FIELD_INCORRECT));
+    }
+
+    const monthIndex = MONTH_MAP[month];
+    const currentYear = new Date().getFullYear();
+
+    const startDate = new Date(Date.UTC(currentYear, monthIndex, 1, 0, 0, 0, 0));
+    const endDate = new Date(Date.UTC(currentYear, monthIndex + 1, 1, 0, 0, 0, 0));
+
+    const courseRepo = dataSource.getRepository("Course");
+    const bookingRepo = dataSource.getRepository("CourseBooking");
+    const packageRepo = dataSource.getRepository("CreditPackage");
+
+    const coachCourses = await courseRepo.find({
+      where: { user_id: req.user.id },
+    });
+
+    if (coachCourses.length === 0) {
+      return handleSuccess(res, {
+        total: {
+          revenue: 0,
+          participants: 0,
+          course_count: 0,
+        },
+      });
+    }
+
+    const courseIds = coachCourses.map((c) => c.id);
+
+    const bookings = await bookingRepo
+      .createQueryBuilder("booking")
+      .where("booking.course_id IN (:...courseIds)", { courseIds })
+      .andWhere("booking.created_at >= :startDate", { startDate })
+      .andWhere("booking.created_at < :endDate", { endDate })
+      .andWhere("booking.cancelled_at IS NULL")
+      .getMany();
+
+    const courseCount = bookings.length;
+    const uniqueParticipants = new Set(bookings.map((b) => b.user_id)).size;
+
+    const packages = await packageRepo.find();
+    const totalPrice = packages.reduce((sum, p) => sum + Number(p.price || 0), 0);
+    const totalCredits = packages.reduce((sum, p) => sum + Number(p.credit_amount || 0), 0);
+
+    const averagePrice = totalCredits > 0 ? totalPrice / totalCredits : 0;
+    const revenue = Math.floor(courseCount * averagePrice);
+
+    return handleSuccess(res, {
+      total: {
+        revenue,
+        participants: uniqueParticipants,
+        course_count: courseCount,
+      },
+    });
   },
 };
 

@@ -14,4 +14,6 @@ router.put("/courses/:courseId", isAuth, adminCoursesController.updateCourse);
 
 router.post("/:userId", adminCoachesController.createCoach);
 
+router.get("/revenue", isAuth, isCoach, adminCoachesController.getCoachRevenue);
+
 module.exports = router;
