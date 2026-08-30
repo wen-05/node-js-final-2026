@@ -6,6 +6,8 @@ const User = require('../entities/User')
 const Coach = require('../entities/Coach')
 const CoachLinkSkill = require("../entities/CoachLinkSkill");
 const Course = require("../entities/Course");
+const CreditPurchase = require("../entities/CreditPurchase");
+const CourseBooking = require("../entities/CourseBooking");
 
 const dataSource = new DataSource({
   type: 'postgres',
@@ -17,7 +19,7 @@ const dataSource = new DataSource({
   synchronize: process.env.DB_SYNCHRONIZE === 'true',
   ssl: process.env.DB_ENABLE_SSL === 'true',
   entities: [
-    Skill, CreditPackage, User, Coach, CoachLinkSkill, Course
+    Skill, CreditPackage, User, Coach, CoachLinkSkill, Course, CreditPurchase, CourseBooking
   ],
 })
 

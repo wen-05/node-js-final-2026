@@ -52,7 +52,32 @@ const creditPackageController = {
     }
 
     return handleSuccess(res)
-  }
+  },
+
+  async buyCreditPackage(req, res, next) {
+    const { creditPackageId } = req.params;
+
+    if (isNotValidString(creditPackageId)) {
+      return next(appError(400, ID_ERROR));
+    }
+
+    const packageRepo = dataSource.getRepository("CreditPackage");
+    const pkg = await packageRepo.findOneBy({ id: creditPackageId });
+    if (!pkg) {
+      return next(appError(400, ID_ERROR));
+    }
+
+    const purchaseRepo = dataSource.getRepository("CreditPurchase");
+    const newPurchase = purchaseRepo.create({
+      user_id: req.user.id,
+      credit_package_id: pkg.id,
+      purchased_credits: pkg.credit_amount,
+      price_paid: pkg.price,
+    });
+
+    await purchaseRepo.save(newPurchase);
+    return handleSuccess(res);
+  },
 }
 
 module.exports = creditPackageController;

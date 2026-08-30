@@ -133,7 +133,7 @@ const usersController = {
     return handleSuccess(res, responseData)
   },
 
-async updatePassword(req, res, next) {
+  async updatePassword(req, res, next) {
     const { password, new_password, confirm_new_password } = req.body;
 
     if (
@@ -178,7 +178,95 @@ async updatePassword(req, res, next) {
     });
 
     return handleSuccess(res);
-  }
+  },
+
+  async getUserCreditPackages(req, res, next) {
+    const purchaseRepo = dataSource.getRepository("CreditPurchase");
+    const packageRepo = dataSource.getRepository("CreditPackage");
+
+    const purchases = await purchaseRepo.find({
+      where: { user_id: req.user.id },
+      order: { purchase_at: "DESC" },
+    });
+
+    if (!purchases || purchases.length === 0) {
+      return handleSuccess(res, []);
+    }
+
+    const allPackages = await packageRepo.find();
+    const packageMap = new Map(allPackages.map((pkg) => [pkg.id, pkg.name]));
+
+    const data = purchases.map((item) => ({
+      name: packageMap.get(item.credit_package_id) || "",
+      purchased_credits: Number(item.purchased_credits),
+      price_paid: Number(item.price_paid),
+      purchase_at: item.purchase_at,
+    }));
+
+    return handleSuccess(res, data);
+  },
+
+  async getUserCourses(req, res, next) {
+    const userId = req.user.id;
+    const purchaseRepo = dataSource.getRepository("CreditPurchase");
+    const bookingRepo = dataSource.getRepository("CourseBooking");
+    const courseRepo = dataSource.getRepository("Course");
+    const userRepo = dataSource.getRepository("User");
+
+    // 1. 計算購買的總堂數
+    const purchases = await purchaseRepo.find({
+      where: { user_id: userId },
+    });
+    const totalPurchased = purchases.reduce(
+      (sum, item) => sum + Number(item.purchased_credits),
+      0
+    );
+
+    // 2. 取得該會員所有的預約紀錄
+    const bookings = await bookingRepo.find({
+      where: { user_id: userId },
+    });
+
+    const activeBookingsCount = bookings.filter((b) => b.cancelled_at === null).length;
+    const creditRemain = Math.max(0, totalPurchased - activeBookingsCount);
+    const creditUsage = activeBookingsCount;
+
+    if (!bookings || bookings.length === 0) {
+      return handleSuccess(res, {
+        credit_remain: creditRemain,
+        credit_usage: creditUsage,
+        course_booking: [],
+      });
+    }
+
+    // 3. 取得所有課程與教練資料
+    const allCourses = await courseRepo.find();
+    const courseMap = new Map(allCourses.map((c) => [c.id, c]));
+
+    const allUsers = await userRepo.find();
+    const userMap = new Map(allUsers.map((u) => [u.id, u.name]));
+
+    const courseBooking = bookings
+      .map((b) => {
+        const c = courseMap.get(b.course_id);
+        return {
+          course_id: b.course_id,
+          name: c ? c.name : "",
+          start_at: c ? c.start_at : null,
+          end_at: c ? c.end_at : null,
+          meeting_url: c ? c.meeting_url : "",
+          coach_name: c ? (userMap.get(c.user_id) || "") : "",
+          cancelled_at: b.cancelled_at,
+        };
+      })
+      .sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
+
+    return handleSuccess(res, {
+      credit_remain: creditRemain,
+      credit_usage: creditUsage,
+      course_booking: courseBooking,
+    });
+  },
 };
 
 module.exports = usersController;
