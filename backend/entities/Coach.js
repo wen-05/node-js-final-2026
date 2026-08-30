@@ -12,7 +12,7 @@ module.exports = new EntitySchema({
     updated_at: { type: "timestamp", updateDate: true },
   },
   relations: {
-    USERS: {
+    user: {
       type: "one-to-one",
       target: "User", 
       joinColumn: { name: "user_id" },
